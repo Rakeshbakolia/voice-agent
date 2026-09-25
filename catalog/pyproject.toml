@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "catalog"
+version = "0.1.0"
+description = "Game catalog ORM and database utilities"
+requires-python = ">=3.10"
+dependencies = [
+    "sqlalchemy>=2.0",
+    "psycopg[binary]>=3.1",
+    "pgvector>=0.3",
+    "python-dotenv>=1.0",
+]
+
+[project.scripts]
+catalog-db = "catalog.cli:main"
+catalog-ingest = "catalog.ingest_cli:main"
+
+[tool.setuptools.package-data]
+catalog = ["data/*.txt"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"

@@ -1,0 +1,23 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: voice-agent-db
+    restart: unless-stopped
+    ports:
+      # Host 5434 avoids conflict with a local PostgreSQL install on 5432.
+      - "${POSTGRES_PORT:-5434}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-voice_agent}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-voice_agent}
+      POSTGRES_DB: ${POSTGRES_DB:-voice_agent}
+    volumes:
+      - voice_agent_pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-voice_agent} -d ${POSTGRES_DB:-voice_agent}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  voice_agent_pgdata:
