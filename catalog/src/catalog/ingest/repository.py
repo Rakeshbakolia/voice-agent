@@ -97,6 +97,7 @@ def upsert_game_with_rag(
     rating_critic: float | None = None,
     rating_total: float | None = None,
     metacritic_score: int | None = None,
+    rawg_rating: float | None = None,
     rag_document: str,
     chunk_metadata: dict,
     stats: dict,
@@ -137,6 +138,8 @@ def upsert_game_with_rag(
     gp.rating_critic = rating_critic
     gp.rating_total = rating_total
     gp.metacritic_score = metacritic_score
+    if rawg_rating is not None:
+        gp.rawg_rating = rawg_rating
     gp.last_synced_at = now
     gp.source = source
 

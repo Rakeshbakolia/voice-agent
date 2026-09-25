@@ -42,7 +42,6 @@ uv run catalog-ingest no-auth --openvgdb-limit 1500 --steam-limit 15
 | Source | Why skipped for now | Planned |
 |--------|---------------------|---------|
 | **[OpenVGDB only — full 53k rows / MAME]** | MAME arcade (`MAME` system) is huge and poor fit for recommender voice flow | Optional `--systems` without default cap |
-| **[Steam Dataset 2025](https://github.com/vintagedon/steam-dataset-2025)** | Large static dump; overlaps `appdetails` for MVP | Offline CSV import job |
 | **Wikipedia / Wikidata** | Sparse ratings; weak for “best RPG on PS5” | Identifier enrichment only |
 | **Metacritic unofficial JSON** | No official API; ToS / scraping risk | After IGDB/RAWG baseline |
 | **PlayStation Store scrapers** | Scraping + legal review | Optional Sony-only enrich |
@@ -54,10 +53,11 @@ uv run catalog-ingest no-auth --openvgdb-limit 1500 --steam-limit 15
 | Source | Auth | CLI | Status |
 |--------|------|-----|--------|
 | **IGDB (Twitch)** | `TWITCH_CLIENT_ID` + `TWITCH_CLIENT_SECRET` | `catalog-ingest igdb` | **Done** |
-| **RAWG** | `RAWG_API_KEY` | (pending) | Pending |
-| **Steam Web API** | `STEAM_WEB_API_KEY` | (pending) | Pending |
-| **GameBrain** | API key (+ attribution) | (pending) | Optional |
-| **MobyGames** | Subscription / research waiver | (pending) | Optional |
+| **RAWG** | `RAWG_API_KEY` | `catalog-ingest rawg` | **Done** |
+| **Steam Web API** | `STEAM_WEB_API_KEY` | `catalog-ingest steam-api` | **Done** |
+| **GameBrain** | `GAMEBRAIN_API_KEY` | `catalog-ingest gamebrain` | **Done** |
+| **Steam Dataset 2025** (Zenodo CSV/Parquet) | Download only | `catalog-ingest steam-dataset` | **Partial** (~150k PC rows from `applications.csv`; full ~239k optional) |
+| **MobyGames** | Paid subscription | — | **Skipped** |
 
 ```bash
 # .env.local: TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET
@@ -65,17 +65,38 @@ cd catalog && uv run catalog-ingest igdb --games-per-platform 50
 
 # PS5 only, small test
 uv run catalog-ingest igdb --platform-ids 167 --games-per-platform 25
+
+# Steam Web API + GameBrain (Phase 2 remainder)
+uv run catalog-ingest steam-api --list-limit 300 --enrich-limit 40 --delay 1.25
+uv run catalog-ingest gamebrain --limit-per-platform 40
+uv run catalog-ingest phase2   # both with defaults
+
+# Steam Dataset 2025 (Zenodo: applications.csv + application_genres.csv + genres.csv)
+uv run catalog-ingest steam-dataset \
+  --file ~/Downloads/steam_dataset_2025_csv/applications.csv \
+  --genres-file ~/Downloads/steam_dataset_2025_csv/application_genres.csv \
+  --genre-names-file ~/Downloads/steam_dataset_2025_csv/genres.csv
+# Full multi-source replay: catalog/scripts/full_ingest.sh (steam-dataset is the long step)
+
+# RAWG
+uv run catalog-ingest rawg --games-per-platform 50
+uv run catalog-ingest rawg --platform-ids 187,7,4 --games-per-platform 25
 ```
 
-**Env vars:** `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`, `RAWG_API_KEY`, `STEAM_WEB_API_KEY`, `GAMEBRAIN_API_KEY`
+**Env vars:** `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`, `STEAM_WEB_API_KEY`, `GAMEBRAIN_API_KEY`, optional `RAWG_API_KEY`
 
 ---
 
-## Phase 3 — Agent / embeddings (pending)
+## Phase 3 — Agent / embeddings
 
-- [ ] Embedding job for `game_chunk.embedding` (e.g. OpenAI / local model, dim **1536**)
-- [ ] LiveKit **function tools** reading Postgres (genre + platform + rating dimension)
-- [ ] Merge duplicate titles across `openvgdb` / `steam` / IGDB via `game_external_id`
+- [x] Embedding job — `catalog-embed run` (`catalog/embeddings.py`, OpenAI `text-embedding-3-small`, dim **1536**)
+- [x] LiveKit **function tools** — `search_games`, `search_similar_games`, `get_game_details`, `list_catalog_filters` (`agent/src/game_tools.py`)
+- [ ] Automated merge of duplicate titles (`catalog-embed stats --dedup` reports only; merge via `game_external_id` TBD)
+
+```bash
+cd catalog && uv run catalog-embed stats
+uv run catalog-embed run --limit 5000 --batch-size 64   # pilot before full ~194k chunks
+```
 
 ---
 

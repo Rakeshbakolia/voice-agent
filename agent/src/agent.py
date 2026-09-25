@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 from dotenv import load_dotenv
 from livekit.agents import (
@@ -19,9 +20,18 @@ from call_context import (
     build_opening_instructions,
     load_call_context,
 )
+from game_tools import (
+    get_game_details_tool,
+    list_catalog_filters_tool,
+    search_games_tool,
+    search_similar_games_tool,
+)
 
 logger = logging.getLogger("agent")
 
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+load_dotenv(_REPO_ROOT / ".env.local")
+load_dotenv(_REPO_ROOT / ".env")
 load_dotenv(".env.local")
 
 
@@ -31,6 +41,12 @@ class Assistant(Agent):
             # A Large Language Model (LLM) is your agent's brain, processing user input and generating a response
             # See all available models at https://docs.livekit.io/agents/models/llm/
             llm=inference.LLM(model="google/gemma-4-31b-it"),
+            tools=[
+                search_games_tool,
+                search_similar_games_tool,
+                get_game_details_tool,
+                list_catalog_filters_tool,
+            ],
             # To use a realtime model instead of a voice pipeline, replace the LLM
             # with a realtime model and remove the STT/TTS from the AgentSession
             # (Note: This is for OpenAI GPT-Live, the recommended speech-to-speech
