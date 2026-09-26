@@ -5,18 +5,13 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from catalog.database import get_session_factory
-from catalog.embeddings import embed_query_text
-from catalog.queries import (
-    SortDimension,
-    format_game_details,
-    format_search_results,
-    format_semantic_results,
-    get_game_details,
-    list_supported_filters,
-    search_games,
-    semantic_search_games,
+from catalog.chat_tools import (
+    run_get_game_details,
+    run_list_catalog_filters,
+    run_search_games,
+    run_search_similar_games,
 )
+from catalog.queries import SortDimension
 from livekit.agents import RunContext, function_tool
 
 logger = logging.getLogger("agent")
@@ -49,16 +44,13 @@ async def search_games_tool(
         sort_by,
         limit,
     )
-    with get_session_factory()() as session:
-        hits = search_games(
-            session,
-            platform=platform,
-            genre=genre,
-            sort_by=sort_by,
-            limit=limit,
-            min_rating=min_rating,
-        )
-        return format_search_results(hits, platform_query=platform)
+    return run_search_games(
+        platform=platform,
+        genre=genre,
+        sort_by=sort_by,
+        limit=limit,
+        min_rating=min_rating,
+    )
 
 
 @function_tool
@@ -76,15 +68,7 @@ async def get_game_details_tool(
         platform: Optional platform slug to scope ratings (e.g. ps5).
     """
     logger.info("get_game_details title=%s platform=%s", title, platform)
-    with get_session_factory()() as session:
-        details = get_game_details(session, title=title, platform=platform)
-        if details is None:
-            return (
-                f"I could not find '{title}' in the catalog"
-                + (f" on {platform}" if platform else "")
-                + ". Ask the user to spell the title or try search_games instead."
-            )
-        return format_game_details(details)
+    return run_get_game_details(title=title, platform=platform)
 
 
 @function_tool
@@ -105,21 +89,7 @@ async def search_similar_games_tool(
         limit: Number of titles (1 to 15).
     """
     logger.info("search_similar query=%s platform=%s", query, platform)
-    try:
-        vector = embed_query_text(query)
-    except RuntimeError as exc:
-        return (
-            f"Semantic search is unavailable: {exc}. "
-            "Use search_games for rating-based recommendations instead."
-        )
-    with get_session_factory()() as session:
-        hits = semantic_search_games(
-            session,
-            vector,
-            platform=platform,
-            limit=limit,
-        )
-        return format_semantic_results(hits, query=query)
+    return run_search_similar_games(query=query, platform=platform, limit=limit)
 
 
 @function_tool
@@ -128,5 +98,4 @@ async def list_catalog_filters_tool(context: RunContext) -> str:
 
     Use when the user is unsure which platform or genre names work.
     """
-    with get_session_factory()() as session:
-        return list_supported_filters(session)
+    return run_list_catalog_filters()
